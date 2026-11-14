@@ -1,0 +1,37 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Prueba de conexión API</title>
+</head>
+<body>
+    <h1>Prueba de conexión con el backend</h1>
+    <button onclick="probarConexion()">Probar conexión</button>
+    <p id="resultado">Esperando prueba...</p>
+
+    <script>
+        async function probarConexion() {
+            const resultado = document.getElementById("resultado");
+
+            try {
+                const respuesta = await fetch(
+                    "http://127.0.0.1:8000/api/v1/recursos/"
+                );
+
+                if (!respuesta.ok) {
+                    throw new Error("Error HTTP: " + respuesta.status);
+                }
+
+                const datos = await respuesta.json();
+
+                resultado.textContent =
+                    "¡Conexión exitosa! Recursos encontrados: " + datos.length;
+
+            } catch (error) {
+                resultado.textContent = "Error de conexión: " + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
