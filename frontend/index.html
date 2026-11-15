@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIGEP — Sistema Institucional de Gestión de Préstamos</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Barra Lateral -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-badge">SP</div>
+        <div>
+          <h1 class="brand-title">SIGEP</h1>
+          <p class="brand-subtitle">Préstamos de Equipos</p>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Navegación principal">
+        <span class="nav-group-label">General</span>
+        <button class="nav-link active" data-view="dashboard">
+          <span class="nav-dot"></span> Panel General
+        </button>
+
+        <span class="nav-group-label">Inventario y Personas</span>
+        <button class="nav-link" data-view="recursos">
+          <span class="nav-dot"></span> Catálogo de Recursos
+        </button>
+        <button class="nav-link" data-view="usuarios">
+          <span class="nav-dot"></span> Usuarios
+        </button>
+        <button class="nav-link" data-view="departamentos">
+          <span class="nav-dot"></span> Departamentos
+        </button>
+
+        <span class="nav-group-label">Operación de Préstamos</span>
+        <button class="nav-link" data-view="solicitudes">
+          <span class="nav-dot"></span> Solicitudes
+        </button>
+        <button class="nav-link" data-view="prestamos">
+          <span class="nav-dot"></span> Préstamos y Entregas
+        </button>
+        <button class="nav-link" data-view="prorrogas">
+          <span class="nav-dot"></span> Prórrogas
+        </button>
+
+        <span class="nav-group-label">Coordinación</span>
+        <button class="nav-link" data-view="reportes">
+          <span class="nav-dot"></span> Reportes e Historial
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <small>API REST v1 · Grupo 08</small>
+      </div>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <div class="main-wrapper">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-menu-mobile" id="btnToggleMenu" aria-label="Abrir menú">☰</button>
+          <div>
+            <h2 class="page-title" id="topbarTitle">Panel General</h2>
+            <p class="page-subtitle" id="topbarSubtitle">Resumen operativo en tiempo real del sistema</p>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="api-status" id="apiStatusIndicator" title="Estado de conexión con FastAPI">
+            <span class="status-led"></span>
+            <span id="apiStatusText">Verificando API...</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Zona de Notificaciones -->
+      <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+      <!-- Contenedor Dinámico de Vistas -->
+      <main class="content-area" id="appContent">
+        <div class="loading-box">
+          <div class="spinner"></div>
+          <p>Cargando módulo...</p>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal Global Reutilizable -->
+  <div class="modal-backdrop hidden" id="globalModalBackdrop" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="globalModalTitle">Título</h3>
+        <button class="modal-close" id="globalModalClose" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="globalModalBody"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
