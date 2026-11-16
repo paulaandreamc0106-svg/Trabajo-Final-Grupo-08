@@ -1,19 +1,23 @@
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
 from backend.app.models.entidades import (
-    Usuario,
     Departamento,
-    Solicitud,
     Prestamo,
-    Prorroga
+    Prorroga,
+    Solicitud,
+    Usuario,
 )
 from backend.app.schemas.usuarios import (
-    UsuarioCrear,
     UsuarioActualizar,
-    UsuarioRespuesta
+    UsuarioCrear,
+    UsuarioRespuesta,
+)
+from backend.app.security import (
+    get_current_user,
+    hash_password,
+    require_roles,
 )
 
 router = APIRouter(
@@ -36,7 +40,11 @@ def validar_departamento(departamento_id: int | None, db: Session):
 
 
 @router.post("/", response_model=UsuarioRespuesta, status_code=201)
-def crear_usuario(datos: UsuarioCrear, db: Session = Depends(get_db)):
+def crear_usuario(
+    datos: UsuarioCrear,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
+):
     existente = db.query(Usuario).filter(
         Usuario.correo == datos.correo
     ).first()
@@ -49,7 +57,11 @@ def crear_usuario(datos: UsuarioCrear, db: Session = Depends(get_db)):
 
     validar_departamento(datos.departamento_id, db)
 
-    usuario = Usuario(**datos.model_dump())
+    payload = datos.model_dump(exclude={"password"})
+    usuario = Usuario(
+        **payload,
+        password_hash=hash_password(datos.password),
+    )
     db.add(usuario)
     db.commit()
     db.refresh(usuario)
@@ -58,12 +70,19 @@ def crear_usuario(datos: UsuarioCrear, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=list[UsuarioRespuesta])
-def listar_usuarios(db: Session = Depends(get_db)):
+def listar_usuarios(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
     return db.query(Usuario).order_by(Usuario.id).all()
 
 
 @router.get("/{usuario_id}", response_model=UsuarioRespuesta)
-def obtener_usuario(usuario_id: int, db: Session = Depends(get_db)):
+def obtener_usuario(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
     usuario = db.query(Usuario).filter(
         Usuario.id == usuario_id
     ).first()
@@ -78,7 +97,8 @@ def obtener_usuario(usuario_id: int, db: Session = Depends(get_db)):
 def actualizar_usuario(
     usuario_id: int,
     datos: UsuarioActualizar,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
 ):
     usuario = db.query(Usuario).filter(
         Usuario.id == usuario_id
@@ -89,7 +109,7 @@ def actualizar_usuario(
 
     cambios = datos.model_dump(exclude_unset=True)
 
-    for campo in ("nombre", "correo", "tipo"):
+    for campo in ("nombre", "correo", "tipo", "rol"):
         if campo in cambios and cambios[campo] is None:
             raise HTTPException(
                 status_code=422,
@@ -111,6 +131,11 @@ def actualizar_usuario(
     if "departamento_id" in cambios:
         validar_departamento(cambios["departamento_id"], db)
 
+    if "password" in cambios:
+        nueva_pass = cambios.pop("password")
+        if nueva_pass:
+            usuario.password_hash = hash_password(nueva_pass)
+
     for campo, valor in cambios.items():
         setattr(usuario, campo, valor)
 
@@ -121,7 +146,17 @@ def actualizar_usuario(
 
 
 @router.delete("/{usuario_id}")
-def eliminar_usuario(usuario_id: int, db: Session = Depends(get_db)):
+def eliminar_usuario(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(require_roles("responsable")),
+):
+    if usuario_actual.id == usuario_id:
+        raise HTTPException(
+            status_code=409,
+            detail="No puedes eliminar tu propio usuario en sesión"
+        )
+
     usuario = db.query(Usuario).filter(
         Usuario.id == usuario_id
     ).first()

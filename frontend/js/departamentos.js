@@ -1,6 +1,7 @@
 import { api } from "./api.js";
 import {
   store,
+  tieneRol,
   escapeHTML,
   showToast,
   openModal,
@@ -8,6 +9,8 @@ import {
 } from "./state.js";
 
 export async function renderDepartamentos(container) {
+  const esResponsable = tieneRol("responsable");
+
   async function cargarYRenderizar() {
     try {
       const [departamentos, usuarios] = await Promise.all([
@@ -28,7 +31,11 @@ export async function renderDepartamentos(container) {
       <div class="card">
         <div class="section-header">
           <h3 class="section-title">Departamentos y Áreas (${store.departamentos.length})</h3>
-          <button class="btn btn-primary" id="btnNuevoDept">+ Nuevo Departamento</button>
+          ${
+            esResponsable
+              ? `<button class="btn btn-primary" id="btnNuevoDept">+ Nuevo Departamento</button>`
+              : ""
+          }
         </div>
 
         ${
@@ -42,7 +49,7 @@ export async function renderDepartamentos(container) {
                     <th>ID</th>
                     <th>Nombre del Departamento</th>
                     <th>Usuarios Asociados</th>
-                    <th>Acciones</th>
+                    ${esResponsable ? `<th>Acciones</th>` : ""}
                   </tr>
                 </thead>
                 <tbody>
@@ -56,12 +63,16 @@ export async function renderDepartamentos(container) {
                         <td>#${d.id}</td>
                         <td><strong>${escapeHTML(d.nombre)}</strong></td>
                         <td>${cantidadUsuarios} usuario(s)</td>
-                        <td>
-                          <div class="actions-group">
-                            <button class="btn btn-secondary btn-sm" data-edit="${d.id}">Editar</button>
-                            <button class="btn btn-danger btn-sm" data-delete="${d.id}">Eliminar</button>
-                          </div>
-                        </td>
+                        ${
+                          esResponsable
+                            ? `<td>
+                                <div class="actions-group">
+                                  <button class="btn btn-secondary btn-sm" data-edit="${d.id}">Editar</button>
+                                  <button class="btn btn-danger btn-sm" data-delete="${d.id}">Eliminar</button>
+                                </div>
+                              </td>`
+                            : ""
+                        }
                       </tr>`;
                     })
                     .join("")}
@@ -72,7 +83,10 @@ export async function renderDepartamentos(container) {
       </div>
     `;
 
-    document.getElementById("btnNuevoDept").addEventListener("click", () => abrirFormularioDept());
+    const btnNuevo = document.getElementById("btnNuevoDept");
+    if (btnNuevo) {
+      btnNuevo.addEventListener("click", () => abrirFormularioDept());
+    }
 
     container.querySelectorAll("[data-edit]").forEach((btn) => {
       btn.addEventListener("click", () => {

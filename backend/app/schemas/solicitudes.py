@@ -1,4 +1,3 @@
-
 from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -6,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class SolicitudCrear(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    solicitante_id: int = Field(gt=0)
+    solicitante_id: int | None = Field(default=None, gt=0)
     recurso_id: int = Field(gt=0)
     fecha_entrega: date
     fecha_devolucion_prevista: date
@@ -42,7 +41,7 @@ class SolicitudRespuesta(BaseModel):
 class SolicitudDecision(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    responsable_id: int = Field(gt=0)
+    responsable_id: int | None = Field(default=None, gt=0)
     decision: str
     observacion: str | None = Field(default=None, max_length=500)
 

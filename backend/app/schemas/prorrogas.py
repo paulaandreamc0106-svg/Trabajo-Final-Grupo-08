@@ -1,4 +1,3 @@
-
 from datetime import date, datetime
 from typing import Literal
 
@@ -8,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class ProrrogaCrear(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    solicitante_id: int = Field(gt=0)
+    prestamo_id: int = Field(gt=0)
     nueva_fecha_devolucion: date
     motivo: str = Field(min_length=5, max_length=500)
 
@@ -24,7 +23,7 @@ class ProrrogaCrear(BaseModel):
 class ProrrogaDecision(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    responsable_decision_id: int = Field(gt=0)
+    responsable_decision_id: int | None = Field(default=None, gt=0)
     decision: Literal["aprobada", "rechazada"]
     observacion: str | None = Field(default=None, max_length=500)
 
@@ -47,3 +46,4 @@ class ProrrogaRespuesta(BaseModel):
     motivo: str | None
     estado: str
     responsable_decision_id: int | None
+    observacion_decision: str | None = None

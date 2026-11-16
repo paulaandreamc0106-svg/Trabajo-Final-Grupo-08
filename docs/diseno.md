@@ -111,17 +111,16 @@ El sistema utiliza un modelo relacional compuesto por seis entidades principales
 
 Los modelos se implementan mediante SQLAlchemy.
 
-#### 4.1. Usuarios
+### 4.1. Usuarios
+Almacena la información de las personas que participan en las operaciones de préstamo.
 
-Almacena la información de las personas que pueden participar en las operaciones de préstamo.
-
-| Atributo | Descripción |
-|---|---|
-| id | Identificador único del usuario. |
-| nombre | Nombre de la persona. |
-| correo | Correo electrónico del usuario. |
-| tipo | Tipo de usuario: estudiante, docente, contratista u otro. |
-| departamento_id | Identificador del departamento al que pertenece. |
+- `id`: Identificador único.
+- `nombre`: Nombre completo.
+- `correo`: Correo electrónico institucional (único).
+- `tipo`: Vinculación (`estudiante`, `docente`, `contratista`, `otro`).
+- `rol`: Rol de seguridad en el sistema (`solicitante`, `responsable`, `coordinacion`).
+- `password_hash`: Hash seguro de la contraseña.
+- `departamento_id`: Clave foránea al departamento al que pertenece.
 
 El correo electrónico debe ser único.
 
@@ -193,21 +192,17 @@ Cada préstamo se relaciona con una solicitud.
 
 Los estados principales son aprobado, activo y devuelto.
 
-#### 4.6. Prórrogas
+### 4.6. Prórrogas
 
-Almacena las solicitudes de extensión del periodo de préstamo.
+Extensiones de tiempo solicitadas sobre préstamos activos.
 
-| Atributo | Descripción |
-|---|---|
-| id | Identificador único de la prórroga. |
-| prestamo_id | Préstamo al que pertenece. |
-| fecha_solicitud | Fecha en que se solicita la extensión. |
-| nueva_fecha_devolucion | Nueva fecha propuesta de devolución. |
-| motivo | Motivo de la solicitud de extensión. |
-| estado | Estado de la solicitud de prórroga. |
-| responsable_decision_id | Responsable que toma la decisión. |
-
-Los estados de una prórroga son pendiente, aprobada y rechazada.
+- `id`: Identificador único.
+- `prestamo_id`: Préstamo asociado.
+- `nueva_fecha_devolucion`: Fecha propuesta.
+- `motivo`: Justificación del usuario.
+- `estado`: `pendiente`, `aprobada`, `rechazada`.
+- `responsable_decision_id`: Evaluador que tomó la decisión.
+- `observacion_decision`: Justificación de la decisión del responsable.
 
 ### 5. Relaciones entre las entidades
 
@@ -440,23 +435,23 @@ Se utilizan códigos HTTP para informar el resultado de las operaciones.
 
 Las respuestas de error permiten identificar el problema presentado sin realizar operaciones inválidas sobre la base de datos.
 
-### 10. Control de acceso
+### 10. Control de acceso y seguridad
 
-El sistema contempla tres actores principales:
+El sistema contempla tres actores principales con permisos diferenciados:
 
-- Solicitante.
-- Responsable de préstamos.
-- Coordinación.
+- **Solicitante:** Consultar recursos, registrar solicitudes, consultar sus operaciones y solicitar prórrogas sobre sus préstamos activos.
 
-Las responsabilidades funcionales se distribuyen de la siguiente manera:
+- **Responsable de préstamos:** Gestionar solicitudes, registrar decisiones, entregas y devoluciones, evaluar prórrogas y administrar catálogos (recursos, usuarios y departamentos).
 
-- Solicitante: consultar recursos, registrar solicitudes, consultar sus operaciones y solicitar prórrogas.
-- Responsable de préstamos: gestionar solicitudes, registrar decisiones, entregas y devoluciones, y gestionar prórrogas.
-- Coordinación: consultar información consolidada, préstamos activos e historial.
+- **Coordinación:** Consultar información consolidada, reportes, préstamos activos e historial completo (modo supervisión).
 
-Actualmente, el backend permite identificar usuarios mediante registros existentes en la base de datos, pero todavía no cuenta con un mecanismo de autenticación de usuarios ni una autorización real basada en roles operativos.
+La seguridad y el control de acceso se implementan de la siguiente manera:
 
-Por lo tanto, la separación de permisos por actor se considera una funcionalidad pendiente de implementación y no debe confundirse con las validaciones actuales de existencia de usuarios.
+- **Autenticación:** Los usuarios inician sesión mediante correo y contraseña. El backend valida las credenciales verificando el hash seguro (`PBKDF2-SHA256`) y emite un token de acceso Bearer firmado digitalmente (`HMAC-SHA256`) con una vigencia de 12 horas.
+
+- **Autorización por roles:** La API REST protege sus endpoints mediante dependencias en FastAPI (`get_current_user` y `require_roles`), asegurando que solo los usuarios con el rol autorizado puedan ejecutar acciones administrativas.
+
+- **Interfaz web (Frontend):** La aplicación oculta o muestra dinámicamente los módulos del menú y los botones de acción según el rol del usuario autenticado en la sesión activa.
 
 ### 11. Tecnologías y decisiones técnicas
 
@@ -597,7 +592,7 @@ Ambos integrantes participarán en:
 | RNF-01 | SQLite y SQLAlchemy. |
 | RNF-02 | Comunicación entre frontend, API REST y base de datos. |
 | RNF-03 | Esquemas de validación y controles del backend. |
-| RNF-04 | Diseño de actores y permisos; autenticación y autorización pendientes. |
+| RNF-04 | Autenticación mediante tokens Bearer (HMAC-SHA256), cifrado de claves con PBKDF2-SHA256 y control de acceso basado en roles (solicitante, responsable, coordinacion) en backend e interfaz. |
 | RNF-05 | Relaciones entre entidades y reglas de integridad. |
 | RNF-06 | Manejo de errores y respuestas HTTP. |
 | RNF-07 | Variables de entorno y archivo `.env.example`. |

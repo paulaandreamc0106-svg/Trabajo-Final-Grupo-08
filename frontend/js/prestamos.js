@@ -1,6 +1,7 @@
 import { api } from "./api.js";
 import {
   store,
+  tieneRol,
   refrescarCatalogosBase,
   nombreUsuario,
   infoRecurso,
@@ -14,6 +15,7 @@ import {
 
 export async function renderPrestamos(container) {
   let filtroEstado = "";
+  const esResponsable = tieneRol("responsable");
 
   async function cargarYRenderizar() {
     try {
@@ -90,18 +92,20 @@ export async function renderPrestamos(container) {
                         <td>
                           <div class="actions-group">
                             ${
-                              p.estado === "aprobado"
+                              p.estado === "aprobado" && esResponsable
                                 ? `<button class="btn btn-success btn-sm" data-entregar="${p.id}">Registrar Entrega</button>`
                                 : ""
                             }
                             ${
-                              p.estado === "activo"
+                              p.estado === "activo" && esResponsable
                                 ? `<button class="btn btn-primary btn-sm" data-devolver="${p.id}">Registrar Devolución</button>`
                                 : ""
                             }
                             ${
-                              p.estado === "devuelto"
-                                ? `<span style="color:var(--text-muted);font-size:0.8rem;">Finalizado</span>`
+                              p.estado === "devuelto" || !esResponsable
+                                ? `<span style="color:var(--text-muted);font-size:0.8rem;">${
+                                    p.estado === "devuelto" ? "Finalizado" : "Solo consulta"
+                                  }</span>`
                                 : ""
                             }
                           </div>

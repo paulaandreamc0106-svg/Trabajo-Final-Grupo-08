@@ -1,4 +1,3 @@
-
 from datetime import datetime
 
 from sqlalchemy import (
@@ -22,6 +21,8 @@ class Usuario(Base):
     nombre = Column(String(150), nullable=False)
     correo = Column(String(150), nullable=False, unique=True)
     tipo = Column(String(30), nullable=False)
+    rol = Column(String(30), nullable=False, default="solicitante")
+    password_hash = Column(String(255), nullable=False)
     departamento_id = Column(
         Integer,
         ForeignKey("departamentos.id"),
@@ -104,3 +105,4 @@ class Prorroga(Base):
         Integer,
         ForeignKey("usuarios.id")
     )
+    observacion_decision = Column(Text)
