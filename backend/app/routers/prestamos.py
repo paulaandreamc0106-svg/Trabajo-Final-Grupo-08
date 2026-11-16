@@ -1,15 +1,15 @@
-
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
-from backend.app.models.entidades import Prestamo, Solicitud, Recurso
+from backend.app.models.entidades import Prestamo, Recurso, Solicitud, Usuario
 from backend.app.schemas.prestamos import (
     DevolucionCrear,
-    PrestamoRespuesta
+    PrestamoRespuesta,
 )
+from backend.app.security import get_current_user, require_roles
 
 router = APIRouter(
     prefix="/api/v1/prestamos",
@@ -18,14 +18,23 @@ router = APIRouter(
 
 
 @router.get("/", response_model=list[PrestamoRespuesta])
-def listar_prestamos(db: Session = Depends(get_db)):
-    return db.query(Prestamo).order_by(Prestamo.id.desc()).all()
+def listar_prestamos(
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(get_current_user),
+):
+    query = db.query(Prestamo)
+    if usuario_actual.rol == "solicitante":
+        query = query.join(Solicitud, Prestamo.solicitud_id == Solicitud.id).filter(
+            Solicitud.solicitante_id == usuario_actual.id
+        )
+    return query.order_by(Prestamo.id.desc()).all()
 
 
 @router.get("/{prestamo_id}", response_model=PrestamoRespuesta)
 def obtener_prestamo(
     prestamo_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(get_current_user),
 ):
     prestamo = db.query(Prestamo).filter(
         Prestamo.id == prestamo_id
@@ -33,6 +42,13 @@ def obtener_prestamo(
 
     if prestamo is None:
         raise HTTPException(404, "Préstamo no encontrado")
+
+    if usuario_actual.rol == "solicitante":
+        solicitud = db.query(Solicitud).filter(
+            Solicitud.id == prestamo.solicitud_id
+        ).first()
+        if not solicitud or solicitud.solicitante_id != usuario_actual.id:
+            raise HTTPException(403, "No tienes permiso para ver este préstamo")
 
     return prestamo
 
@@ -43,7 +59,8 @@ def obtener_prestamo(
 )
 def registrar_entrega(
     prestamo_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
 ):
     prestamo = db.query(Prestamo).filter(
         Prestamo.id == prestamo_id
@@ -95,7 +112,8 @@ def registrar_entrega(
 def registrar_devolucion(
     prestamo_id: int,
     datos: DevolucionCrear,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
 ):
     prestamo = db.query(Prestamo).filter(
         Prestamo.id == prestamo_id
@@ -129,7 +147,6 @@ def registrar_devolucion(
     prestamo.observaciones_devolucion = datos.observaciones
     prestamo.estado = "devuelto"
 
-    # Si el equipo regresa dañado, pasa a mantenimiento.
     if datos.estado_fisico == "bueno":
         recurso.estado = "disponible"
     else:

@@ -1,6 +1,7 @@
 import { api } from "./api.js";
 import {
   store,
+  tieneRol,
   badgeEstado,
   escapeHTML,
   showToast,
@@ -13,6 +14,7 @@ const ESTADOS_RECURSO = ["disponible", "prestado", "mantenimiento", "inactivo"];
 export async function renderRecursos(container) {
   let filtroTexto = "";
   let filtroEstado = "";
+  const esResponsable = tieneRol("responsable");
 
   async function cargarYRenderizar() {
     try {
@@ -41,7 +43,11 @@ export async function renderRecursos(container) {
       <div class="card">
         <div class="section-header">
           <h3 class="section-title">Inventario de Equipos y Recursos (${filtrados.length})</h3>
-          <button class="btn btn-primary" id="btnNuevoRecurso">+ Registrar Recurso</button>
+          ${
+            esResponsable
+              ? `<button class="btn btn-primary" id="btnNuevoRecurso">+ Registrar Recurso</button>`
+              : ""
+          }
         </div>
 
         <div class="toolbar">
@@ -74,7 +80,7 @@ export async function renderRecursos(container) {
                     <th>Marca / Modelo</th>
                     <th>Serial</th>
                     <th>Estado</th>
-                    <th>Acciones</th>
+                    ${esResponsable ? `<th>Acciones</th>` : ""}
                   </tr>
                 </thead>
                 <tbody>
@@ -88,12 +94,16 @@ export async function renderRecursos(container) {
                       <td>${escapeHTML([r.marca, r.modelo].filter(Boolean).join(" ") || "—")}</td>
                       <td>${escapeHTML(r.serial || "—")}</td>
                       <td>${badgeEstado(r.estado)}</td>
-                      <td>
-                        <div class="actions-group">
-                          <button class="btn btn-secondary btn-sm" data-edit="${r.id}">Editar</button>
-                          <button class="btn btn-danger btn-sm" data-delete="${r.id}">Eliminar</button>
-                        </div>
-                      </td>
+                      ${
+                        esResponsable
+                          ? `<td>
+                              <div class="actions-group">
+                                <button class="btn btn-secondary btn-sm" data-edit="${r.id}">Editar</button>
+                                <button class="btn btn-danger btn-sm" data-delete="${r.id}">Eliminar</button>
+                              </div>
+                            </td>`
+                          : ""
+                      }
                     </tr>`
                     )
                     .join("")}
@@ -104,7 +114,10 @@ export async function renderRecursos(container) {
       </div>
     `;
 
-    document.getElementById("btnNuevoRecurso").addEventListener("click", () => abrirFormularioRecurso());
+    const btnNuevo = document.getElementById("btnNuevoRecurso");
+    if (btnNuevo) {
+      btnNuevo.addEventListener("click", () => abrirFormularioRecurso());
+    }
 
     document.getElementById("buscarRecurso").addEventListener("input", (e) => {
       filtroTexto = e.target.value;

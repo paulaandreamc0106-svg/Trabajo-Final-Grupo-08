@@ -1,13 +1,10 @@
-
-from datetime import date, datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
-from backend.app.models import (
-    Prorroga,
+from backend.app.models.entidades import (
     Prestamo,
+    Prorroga,
     Solicitud,
     Usuario,
 )
@@ -16,7 +13,7 @@ from backend.app.schemas.prorrogas import (
     ProrrogaDecision,
     ProrrogaRespuesta,
 )
-
+from backend.app.security import get_current_user, require_roles
 
 router = APIRouter(
     prefix="/api/v1/prorrogas",
@@ -27,22 +24,36 @@ router = APIRouter(
 @router.post("/", response_model=ProrrogaRespuesta, status_code=201)
 def crear_prorroga(
     datos: ProrrogaCrear,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(require_roles("solicitante", "responsable")),
 ):
-    prestamo = (
-        db.query(Prestamo)
-        .join(Solicitud)
-        .filter(
-            Solicitud.solicitante_id == datos.solicitante_id,
-            Prestamo.estado == "activo"
-        )
-        .first()
-    )
+    prestamo = db.query(Prestamo).filter(
+        Prestamo.id == datos.prestamo_id
+    ).first()
 
     if not prestamo:
         raise HTTPException(
             status_code=404,
-            detail="No se encontró un préstamo activo para este solicitante"
+            detail="El préstamo indicado no existe"
+        )
+
+    if prestamo.estado != "activo":
+        raise HTTPException(
+            status_code=409,
+            detail="Solo se puede solicitar prórroga sobre un préstamo activo"
+        )
+
+    solicitud = db.query(Solicitud).filter(
+        Solicitud.id == prestamo.solicitud_id
+    ).first()
+
+    if (
+        usuario_actual.rol == "solicitante"
+        and (not solicitud or solicitud.solicitante_id != usuario_actual.id)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Solo puedes solicitar prórroga sobre tus propios préstamos activos"
         )
 
     if datos.nueva_fecha_devolucion <= prestamo.fecha_devolucion_prevista:
@@ -77,16 +88,25 @@ def crear_prorroga(
 
 
 @router.get("/", response_model=list[ProrrogaRespuesta])
-def listar_prorrogas(db: Session = Depends(get_db)):
-    return db.query(Prorroga).order_by(
-        Prorroga.id.desc()
-    ).all()
+def listar_prorrogas(
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(get_current_user),
+):
+    query = db.query(Prorroga)
+    if usuario_actual.rol == "solicitante":
+        query = (
+            query.join(Prestamo, Prorroga.prestamo_id == Prestamo.id)
+            .join(Solicitud, Prestamo.solicitud_id == Solicitud.id)
+            .filter(Solicitud.solicitante_id == usuario_actual.id)
+        )
+    return query.order_by(Prorroga.id.desc()).all()
 
 
 @router.get("/{prorroga_id}", response_model=ProrrogaRespuesta)
 def obtener_prorroga(
     prorroga_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(get_current_user),
 ):
     prorroga = db.query(Prorroga).filter(
         Prorroga.id == prorroga_id
@@ -98,6 +118,12 @@ def obtener_prorroga(
             detail="Prórroga no encontrada"
         )
 
+    if usuario_actual.rol == "solicitante":
+        prestamo = db.query(Prestamo).filter(Prestamo.id == prorroga.prestamo_id).first()
+        solicitud = db.query(Solicitud).filter(Solicitud.id == prestamo.solicitud_id).first() if prestamo else None
+        if not solicitud or solicitud.solicitante_id != usuario_actual.id:
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver esta prórroga")
+
     return prorroga
 
 
@@ -105,7 +131,8 @@ def obtener_prorroga(
 def decidir_prorroga(
     prorroga_id: int,
     datos: ProrrogaDecision,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(require_roles("responsable")),
 ):
     prorroga = db.query(Prorroga).filter(
         Prorroga.id == prorroga_id
@@ -123,14 +150,15 @@ def decidir_prorroga(
             detail="Esta prórroga ya fue evaluada"
         )
 
+    responsable_id = datos.responsable_decision_id or usuario_actual.id
     responsable = db.query(Usuario).filter(
-        Usuario.id == datos.responsable_decision_id
+        Usuario.id == responsable_id
     ).first()
 
-    if not responsable:
+    if not responsable or responsable.rol != "responsable":
         raise HTTPException(
-            status_code=404,
-            detail="El responsable indicado no existe"
+            status_code=400,
+            detail="El usuario indicado no tiene rol de responsable de préstamos"
         )
 
     prestamo = db.query(Prestamo).filter(
@@ -174,7 +202,8 @@ def decidir_prorroga(
         solicitud.fecha_devolucion_prevista = nueva_fecha
 
     prorroga.estado = datos.decision
-    prorroga.responsable_decision_id = datos.responsable_decision_id
+    prorroga.responsable_decision_id = responsable_id
+    prorroga.observacion_decision = datos.observacion
 
     db.commit()
     db.refresh(prorroga)

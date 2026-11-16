@@ -1,6 +1,7 @@
 import { api } from "./api.js";
 import {
   store,
+  tieneRol,
   nombreDepartamento,
   badgeEstado,
   escapeHTML,
@@ -10,10 +11,12 @@ import {
 } from "./state.js";
 
 const TIPOS_USUARIO = ["estudiante", "docente", "contratista", "otro"];
+const ROLES_SISTEMA = ["solicitante", "responsable", "coordinacion"];
 
 export async function renderUsuarios(container) {
   let filtroTexto = "";
   let filtroTipo = "";
+  const esResponsable = tieneRol("responsable");
 
   async function cargarYRenderizar() {
     try {
@@ -45,7 +48,11 @@ export async function renderUsuarios(container) {
       <div class="card">
         <div class="section-header">
           <h3 class="section-title">Usuarios Institucionales (${filtrados.length})</h3>
-          <button class="btn btn-primary" id="btnNuevoUsuario">+ Registrar Usuario</button>
+          ${
+            esResponsable
+              ? `<button class="btn btn-primary" id="btnNuevoUsuario">+ Registrar Usuario</button>`
+              : ""
+          }
         </div>
 
         <div class="toolbar">
@@ -76,8 +83,9 @@ export async function renderUsuarios(container) {
                     <th>Nombre</th>
                     <th>Correo Electrónico</th>
                     <th>Tipo</th>
+                    <th>Rol Sistema</th>
                     <th>Departamento</th>
-                    <th>Acciones</th>
+                    ${esResponsable ? `<th>Acciones</th>` : ""}
                   </tr>
                 </thead>
                 <tbody>
@@ -89,13 +97,18 @@ export async function renderUsuarios(container) {
                       <td><strong>${escapeHTML(u.nombre)}</strong></td>
                       <td>${escapeHTML(u.correo)}</td>
                       <td>${badgeEstado(u.tipo)}</td>
+                      <td>${badgeEstado(u.rol)}</td>
                       <td>${escapeHTML(nombreDepartamento(u.departamento_id))}</td>
-                      <td>
-                        <div class="actions-group">
-                          <button class="btn btn-secondary btn-sm" data-edit="${u.id}">Editar</button>
-                          <button class="btn btn-danger btn-sm" data-delete="${u.id}">Eliminar</button>
-                        </div>
-                      </td>
+                      ${
+                        esResponsable
+                          ? `<td>
+                              <div class="actions-group">
+                                <button class="btn btn-secondary btn-sm" data-edit="${u.id}">Editar</button>
+                                <button class="btn btn-danger btn-sm" data-delete="${u.id}">Eliminar</button>
+                              </div>
+                            </td>`
+                          : ""
+                      }
                     </tr>`
                     )
                     .join("")}
@@ -106,7 +119,10 @@ export async function renderUsuarios(container) {
       </div>
     `;
 
-    document.getElementById("btnNuevoUsuario").addEventListener("click", () => abrirFormularioUsuario());
+    const btnNuevo = document.getElementById("btnNuevoUsuario");
+    if (btnNuevo) {
+      btnNuevo.addEventListener("click", () => abrirFormularioUsuario());
+    }
 
     document.getElementById("buscarUsuario").addEventListener("input", (e) => {
       filtroTexto = e.target.value;
@@ -159,12 +175,24 @@ export async function renderUsuarios(container) {
             <input type="email" class="input" id="usrCorreo" required minlength="5" maxlength="150" value="${escapeHTML(usuario?.correo || "")}" />
           </div>
           <div class="form-group">
-            <label for="usrTipo">Tipo de usuario *</label>
+            <label for="usrTipo">Vinculación institucional *</label>
             <select class="select" id="usrTipo" required>
               ${TIPOS_USUARIO.map(
                 (t) => `<option value="${t}" ${(usuario?.tipo || "estudiante") === t ? "selected" : ""}>${t}</option>`
               ).join("")}
             </select>
+          </div>
+          <div class="form-group">
+            <label for="usrRol">Rol de acceso en SIGEP *</label>
+            <select class="select" id="usrRol" required>
+              ${ROLES_SISTEMA.map(
+                (r) => `<option value="${r}" ${(usuario?.rol || "solicitante") === r ? "selected" : ""}>${r}</option>`
+              ).join("")}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="usrPassword">${esEdicion ? "Nueva contraseña (opcional)" : "Contraseña inicial *"}</label>
+            <input type="password" class="input" id="usrPassword" ${esEdicion ? "" : 'value="Sigep2026*" required'} minlength="6" maxlength="100" placeholder="${esEdicion ? "Dejar vacío para conservar" : ""}" />
           </div>
           <div class="form-group">
             <label for="usrDepartamento">Departamento</label>
@@ -192,12 +220,17 @@ export async function renderUsuarios(container) {
     body.querySelector("#formUsuario").addEventListener("submit", async (e) => {
       e.preventDefault();
       const deptVal = body.querySelector("#usrDepartamento").value;
+      const passVal = body.querySelector("#usrPassword").value;
       const payload = {
         nombre: body.querySelector("#usrNombre").value.trim(),
         correo: body.querySelector("#usrCorreo").value.trim().toLowerCase(),
         tipo: body.querySelector("#usrTipo").value,
+        rol: body.querySelector("#usrRol").value,
         departamento_id: deptVal ? Number(deptVal) : null,
       };
+      if (passVal) {
+        payload.password = passVal;
+      }
 
       try {
         if (esEdicion) {

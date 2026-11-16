@@ -1,6 +1,7 @@
-import { api } from "./api.js";
+import { api, getStoredUser } from "./api.js";
 
 export const store = {
+  usuarioActual: getStoredUser(),
   departamentos: [],
   usuarios: [],
   recursos: [],
@@ -8,6 +9,10 @@ export const store = {
   prestamos: [],
   prorrogas: [],
 };
+
+export function tieneRol(...roles) {
+  return Boolean(store.usuarioActual && roles.includes(store.usuarioActual.rol));
+}
 
 export async function refrescarCatalogosBase() {
   const [departamentos, usuarios, recursos] = await Promise.all([

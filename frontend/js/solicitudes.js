@@ -1,6 +1,7 @@
 import { api } from "./api.js";
 import {
   store,
+  tieneRol,
   refrescarCatalogosBase,
   nombreUsuario,
   infoRecurso,
@@ -15,6 +16,8 @@ import {
 
 export async function renderSolicitudes(container) {
   let filtroEstado = "";
+  const puedeCrear = tieneRol("solicitante", "responsable");
+  const puedeEvaluar = tieneRol("responsable");
 
   async function cargarYRenderizar() {
     try {
@@ -36,7 +39,11 @@ export async function renderSolicitudes(container) {
       <div class="card">
         <div class="section-header">
           <h3 class="section-title">Solicitudes de Préstamo (${filtradas.length})</h3>
-          <button class="btn btn-primary" id="btnNuevaSolicitud">+ Nueva Solicitud</button>
+          ${
+            puedeCrear
+              ? `<button class="btn btn-primary" id="btnNuevaSolicitud">+ Nueva Solicitud</button>`
+              : ""
+          }
         </div>
 
         <div class="toolbar">
@@ -82,9 +89,11 @@ export async function renderSolicitudes(container) {
                       <td>${escapeHTML(s.observacion_decision || "—")}</td>
                       <td>
                         ${
-                          s.estado === "pendiente"
+                          s.estado === "pendiente" && puedeEvaluar
                             ? `<button class="btn btn-primary btn-sm" data-decidir="${s.id}">Evaluar</button>`
-                            : `<span style="color:var(--text-muted);font-size:0.8rem;">Evaluada</span>`
+                            : `<span style="color:var(--text-muted);font-size:0.8rem;">${
+                                s.estado === "pendiente" ? "En revisión" : "Evaluada"
+                              }</span>`
                         }
                       </td>
                     </tr>`
@@ -97,7 +106,10 @@ export async function renderSolicitudes(container) {
       </div>
     `;
 
-    document.getElementById("btnNuevaSolicitud").addEventListener("click", abrirFormularioSolicitud);
+    const btnNueva = document.getElementById("btnNuevaSolicitud");
+    if (btnNueva) {
+      btnNueva.addEventListener("click", abrirFormularioSolicitud);
+    }
 
     document.getElementById("filtrarEstadoSolicitud").addEventListener("change", (e) => {
       filtroEstado = e.target.value;
@@ -115,10 +127,11 @@ export async function renderSolicitudes(container) {
   function abrirFormularioSolicitud() {
     const disponibles = store.recursos.filter((r) => r.estado === "disponible");
     const hoy = hoyISO();
+    const esSolicitante = store.usuarioActual?.rol === "solicitante";
 
-    if (store.usuarios.length === 0 || disponibles.length === 0) {
+    if (disponibles.length === 0) {
       showToast(
-        "Necesitas al menos un usuario registrado y un recurso en estado 'disponible' para crear una solicitud.",
+        "No hay recursos en estado 'disponible' para crear una solicitud.",
         "error"
       );
       return;
@@ -131,15 +144,20 @@ export async function renderSolicitudes(container) {
         <div class="form-grid">
           <div class="form-group full">
             <label for="solSolicitante">Solicitante *</label>
-            <select class="select" id="solSolicitante" required>
-              <option value="">Seleccione un usuario...</option>
-              ${store.usuarios
-                .map(
-                  (u) =>
-                    `<option value="${u.id}">${escapeHTML(u.nombre)} — ${escapeHTML(u.correo)} (${u.tipo})</option>`
-                )
-                .join("")}
-            </select>
+            ${
+              esSolicitante
+                ? `<input class="input" value="${escapeHTML(store.usuarioActual.nombre)} (${escapeHTML(store.usuarioActual.correo)})" disabled />
+                   <input type="hidden" id="solSolicitante" value="${store.usuarioActual.id}" />`
+                : `<select class="select" id="solSolicitante" required>
+                    <option value="">Seleccione un usuario...</option>
+                    ${store.usuarios
+                      .map(
+                        (u) =>
+                          `<option value="${u.id}">${escapeHTML(u.nombre)} — ${escapeHTML(u.correo)} (${u.tipo})</option>`
+                      )
+                      .join("")}
+                  </select>`
+            }
           </div>
           <div class="form-group full">
             <label for="solRecurso">Recurso disponible *</label>
@@ -206,6 +224,8 @@ export async function renderSolicitudes(container) {
   }
 
   function abrirModalDecision(solicitud) {
+    const responsables = store.usuarios.filter((u) => u.rol === "responsable");
+
     const body = openModal(
       `Evaluar Solicitud #${solicitud.id}`,
       `
@@ -219,10 +239,12 @@ export async function renderSolicitudes(container) {
           <div class="form-group">
             <label for="decResponsable">Responsable que evalúa *</label>
             <select class="select" id="decResponsable" required>
-              <option value="">Seleccione responsable...</option>
-              ${store.usuarios
+              ${responsables
                 .map(
-                  (u) => `<option value="${u.id}">${escapeHTML(u.nombre)} (${u.tipo})</option>`
+                  (u) =>
+                    `<option value="${u.id}" ${
+                      u.id === store.usuarioActual?.id ? "selected" : ""
+                    }>${escapeHTML(u.nombre)}</option>`
                 )
                 .join("")}
             </select>

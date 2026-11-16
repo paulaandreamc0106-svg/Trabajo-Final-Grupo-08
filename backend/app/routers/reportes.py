@@ -1,28 +1,31 @@
-
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
-from backend.app.models import (
+from backend.app.models.entidades import (
+    Prestamo,
     Recurso,
     Solicitud,
-    Prestamo,
-    Usuario
+    Usuario,
 )
 from backend.app.schemas.reportes import (
+    PrestamoReporte,
     ResumenReportes,
-    PrestamoReporte
 )
+from backend.app.security import get_current_user
 
 router = APIRouter(
     prefix="/api/v1/reportes",
     tags=["Reportes de coordinación"]
 )
 
-@router.get("/resumen", response_model=ResumenReportes)
-def obtener_resumen(db: Session = Depends(get_db)):
 
+@router.get("/resumen", response_model=ResumenReportes)
+def obtener_resumen(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
     total_recursos = db.query(func.count(Recurso.id)).scalar() or 0
     total_solicitudes = db.query(func.count(Solicitud.id)).scalar() or 0
     total_prestamos = db.query(func.count(Prestamo.id)).scalar() or 0
@@ -57,9 +60,12 @@ def obtener_resumen(db: Session = Depends(get_db)):
         }
     }
 
-@router.get("/prestamos-activos", response_model=list[PrestamoReporte])
-def obtener_prestamos_activos(db: Session = Depends(get_db)):
 
+@router.get("/prestamos-activos", response_model=list[PrestamoReporte])
+def obtener_prestamos_activos(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
     resultados = (
         db.query(Prestamo, Solicitud, Recurso, Usuario)
         .join(Solicitud, Prestamo.solicitud_id == Solicitud.id)
@@ -89,9 +95,12 @@ def obtener_prestamos_activos(db: Session = Depends(get_db)):
         for prestamo, solicitud, recurso, usuario in resultados
     ]
 
-@router.get("/historial-prestamos", response_model=list[PrestamoReporte])
-def obtener_historial_prestamos(db: Session = Depends(get_db)):
 
+@router.get("/historial-prestamos", response_model=list[PrestamoReporte])
+def obtener_historial_prestamos(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
     resultados = (
         db.query(Prestamo, Solicitud, Recurso, Usuario)
         .join(Solicitud, Prestamo.solicitud_id == Solicitud.id)

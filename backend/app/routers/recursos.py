@@ -1,15 +1,15 @@
-
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
-from backend.app.models.entidades import Recurso
+from backend.app.models.entidades import Recurso, Usuario
 from backend.app.schemas.recursos import (
-    RecursoCrear,
     RecursoActualizar,
-    RecursoRespuesta
+    RecursoCrear,
+    RecursoRespuesta,
 )
+from backend.app.security import get_current_user, require_roles
 
 router = APIRouter(
     prefix="/api/v1/recursos",
@@ -18,12 +18,19 @@ router = APIRouter(
 
 
 @router.get("/", response_model=list[RecursoRespuesta])
-def listar_recursos(db: Session = Depends(get_db)):
+def listar_recursos(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
     return db.query(Recurso).order_by(Recurso.id).all()
 
 
 @router.get("/{recurso_id}", response_model=RecursoRespuesta)
-def obtener_recurso(recurso_id: int, db: Session = Depends(get_db)):
+def obtener_recurso(
+    recurso_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
     recurso = db.query(Recurso).filter(
         Recurso.id == recurso_id
     ).first()
@@ -42,7 +49,11 @@ def obtener_recurso(recurso_id: int, db: Session = Depends(get_db)):
     response_model=RecursoRespuesta,
     status_code=status.HTTP_201_CREATED
 )
-def crear_recurso(datos: RecursoCrear, db: Session = Depends(get_db)):
+def crear_recurso(
+    datos: RecursoCrear,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
+):
     existente = db.query(Recurso).filter(
         Recurso.codigo == datos.codigo
     ).first()
@@ -77,7 +88,8 @@ def crear_recurso(datos: RecursoCrear, db: Session = Depends(get_db)):
 def actualizar_recurso(
     recurso_id: int,
     datos: RecursoActualizar,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
 ):
     recurso = db.query(Recurso).filter(
         Recurso.id == recurso_id
@@ -125,7 +137,11 @@ def actualizar_recurso(
 
 
 @router.delete("/{recurso_id}")
-def eliminar_recurso(recurso_id: int, db: Session = Depends(get_db)):
+def eliminar_recurso(
+    recurso_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
+):
     recurso = db.query(Recurso).filter(
         Recurso.id == recurso_id
     ).first()

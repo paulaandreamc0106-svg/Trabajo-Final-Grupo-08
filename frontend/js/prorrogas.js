@@ -1,6 +1,7 @@
 import { api } from "./api.js";
 import {
   store,
+  tieneRol,
   refrescarCatalogosBase,
   nombreUsuario,
   infoRecurso,
@@ -14,6 +15,9 @@ import {
 } from "./state.js";
 
 export async function renderProrrogas(container) {
+  const puedeSolicitar = tieneRol("solicitante", "responsable");
+  const puedeEvaluar = tieneRol("responsable");
+
   async function cargarYRenderizar() {
     try {
       await refrescarCatalogosBase();
@@ -37,7 +41,11 @@ export async function renderProrrogas(container) {
       <div class="card">
         <div class="section-header">
           <h3 class="section-title">Solicitudes de Prórroga (${store.prorrogas.length})</h3>
-          <button class="btn btn-primary" id="btnNuevaProrroga">+ Solicitar Prórroga</button>
+          ${
+            puedeSolicitar
+              ? `<button class="btn btn-primary" id="btnNuevaProrroga">+ Solicitar Prórroga</button>`
+              : ""
+          }
         </div>
 
         ${
@@ -55,7 +63,7 @@ export async function renderProrrogas(container) {
                     <th>Nueva Fecha Propuesta</th>
                     <th>Motivo</th>
                     <th>Estado</th>
-                    <th>Responsable</th>
+                    <th>Responsable / Obs.</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -78,12 +86,17 @@ export async function renderProrrogas(container) {
                         <td><strong>${formatearFecha(pr.nueva_fecha_devolucion)}</strong></td>
                         <td>${escapeHTML(pr.motivo || "—")}</td>
                         <td>${badgeEstado(pr.estado)}</td>
-                        <td>${pr.responsable_decision_id ? escapeHTML(nombreUsuario(pr.responsable_decision_id)) : "—"}</td>
+                        <td>
+                          ${pr.responsable_decision_id ? escapeHTML(nombreUsuario(pr.responsable_decision_id)) : "—"}
+                          ${pr.observacion_decision ? `<br/><small>${escapeHTML(pr.observacion_decision)}</small>` : ""}
+                        </td>
                         <td>
                           ${
-                            pr.estado === "pendiente"
+                            pr.estado === "pendiente" && puedeEvaluar
                               ? `<button class="btn btn-primary btn-sm" data-decidir-prorroga="${pr.id}">Evaluar</button>`
-                              : `<span style="color:var(--text-muted);font-size:0.8rem;">Evaluada</span>`
+                              : `<span style="color:var(--text-muted);font-size:0.8rem;">${
+                                  pr.estado === "pendiente" ? "Pendiente" : "Evaluada"
+                                }</span>`
                           }
                         </td>
                       </tr>`;
@@ -96,7 +109,10 @@ export async function renderProrrogas(container) {
       </div>
     `;
 
-    document.getElementById("btnNuevaProrroga").addEventListener("click", abrirModalNuevaProrroga);
+    const btnNueva = document.getElementById("btnNuevaProrroga");
+    if (btnNueva) {
+      btnNueva.addEventListener("click", abrirModalNuevaProrroga);
+    }
 
     container.querySelectorAll("[data-decidir-prorroga]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -114,14 +130,13 @@ export async function renderProrrogas(container) {
       return;
     }
 
-    // Obtener solicitantes únicos que tienen al menos un préstamo activo
     const opcionesActivas = prestamosActivos.map((p) => {
       const sol = store.solicitudes.find((s) => s.id === p.solicitud_id);
       const usr = sol ? store.usuarios.find((u) => u.id === sol.solicitante_id) : null;
       const rec = sol ? store.recursos.find((r) => r.id === sol.recurso_id) : null;
       return {
-        solicitante_id: sol?.solicitante_id,
-        etiqueta: `${usr ? usr.nombre : `Usuario #${sol?.solicitante_id}`} — Préstamo #${p.id} (${rec ? rec.nombre : "Equipo"}, vence: ${p.fecha_devolucion_prevista})`,
+        prestamo_id: p.id,
+        etiqueta: `Préstamo #${p.id} — ${rec ? `${rec.nombre} [${rec.codigo}]` : "Equipo"} (${usr ? usr.nombre : "Solicitante"}, vence: ${p.fecha_devolucion_prevista})`,
       };
     });
 
@@ -130,13 +145,12 @@ export async function renderProrrogas(container) {
       `
       <form id="formNuevaProrroga">
         <div class="form-group" style="margin-bottom:14px;">
-          <label for="proSolicitante">Solicitante con préstamo activo *</label>
-          <select class="select" id="proSolicitante" required>
-            <option value="">Seleccione el solicitante...</option>
+          <label for="proPrestamo">Préstamo activo a extender *</label>
+          <select class="select" id="proPrestamo" required>
+            <option value="">Seleccione el préstamo activo...</option>
             ${opcionesActivas
-              .filter((o) => o.solicitante_id)
               .map(
-                (o) => `<option value="${o.solicitante_id}">${escapeHTML(o.etiqueta)}</option>`
+                (o) => `<option value="${o.prestamo_id}">${escapeHTML(o.etiqueta)}</option>`
               )
               .join("")}
           </select>
@@ -162,7 +176,7 @@ export async function renderProrrogas(container) {
     body.querySelector("#formNuevaProrroga").addEventListener("submit", async (e) => {
       e.preventDefault();
       const payload = {
-        solicitante_id: Number(body.querySelector("#proSolicitante").value),
+        prestamo_id: Number(body.querySelector("#proPrestamo").value),
         nueva_fecha_devolucion: body.querySelector("#proNuevaFecha").value,
         motivo: body.querySelector("#proMotivo").value.trim(),
       };
@@ -179,6 +193,8 @@ export async function renderProrrogas(container) {
   }
 
   function abrirModalDecisionProrroga(prorroga) {
+    const responsables = store.usuarios.filter((u) => u.rol === "responsable");
+
     const body = openModal(
       `Evaluar Prórroga #${prorroga.id}`,
       `
@@ -192,10 +208,12 @@ export async function renderProrrogas(container) {
           <div class="form-group">
             <label for="proResponsable">Responsable que decide *</label>
             <select class="select" id="proResponsable" required>
-              <option value="">Seleccione responsable...</option>
-              ${store.usuarios
+              ${responsables
                 .map(
-                  (u) => `<option value="${u.id}">${escapeHTML(u.nombre)} (${u.tipo})</option>`
+                  (u) =>
+                    `<option value="${u.id}" ${
+                      u.id === store.usuarioActual?.id ? "selected" : ""
+                    }>${escapeHTML(u.nombre)}</option>`
                 )
                 .join("")}
             </select>

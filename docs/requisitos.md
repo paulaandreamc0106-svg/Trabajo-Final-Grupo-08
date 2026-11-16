@@ -139,7 +139,7 @@ Antes de confirmar una asignación, se deberá verificar nuevamente la disponibi
 
 El sistema debe permitir que un solicitante con un préstamo activo solicite una extensión del periodo de préstamo, indicando la nueva fecha de devolución y el motivo.
 
-El responsable de préstamos deberá poder aprobar o rechazar la solicitud de prórroga. Cuando sea aprobada, el sistema deberá actualizar la fecha prevista de devolución del préstamo correspondiente.
+El responsable de préstamos deberá poder aprobar o rechazar la solicitud de prórroga y resgistrar una observacion. Cuando sea aprobada, el sistema deberá actualizar la fecha prevista de devolución del préstamo correspondiente.
 
 **RF-10. Registro de devolución**
 
@@ -177,11 +177,9 @@ La aplicación web debe comunicarse con el backend mediante una API REST, y el b
 
 El sistema debe validar la información ingresada en el frontend y en el backend. Las validaciones del backend serán obligatorias para proteger la integridad de la información.
 
-**RNF-04. Control de acceso**
+**RNF-04. Seguridad y control de acceso por roles**
 
-El sistema deberá restringir las operaciones de acuerdo con los permisos y responsabilidades de cada actor.
-
-La implementación de mecanismos de autenticación y autorización deberá permitir diferenciar las operaciones del solicitante, el responsable de préstamos y coordinación.
+El sistema debe autenticar a los usuarios mediante correo electrónico y contraseña cifrada (`PBKDF2-SHA256`), emitiendo tokens Bearer firmados (`HMAC-SHA256`), y restringir el acceso a las operaciones de la API y a las vistas de la interfaz web según el rol asignado al usuario (`solicitante`, `responsable` o `coordinacion`).
 
 **RNF-05. Integridad de la información**
 

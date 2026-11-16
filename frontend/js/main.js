@@ -1,5 +1,10 @@
-import { api } from "./api.js";
-import { closeModal } from "./state.js";
+import {
+  api,
+  clearAuthSession,
+  getAuthToken,
+  setAuthSession,
+} from "./api.js";
+import { closeModal, showToast, store } from "./state.js";
 import { renderDashboard } from "./dashboard.js";
 import { renderRecursos } from "./recursos.js";
 import { renderUsuarios } from "./usuarios.js";
@@ -24,11 +29,13 @@ const VISTAS = {
     titulo: "Usuarios Institucionales",
     subtitulo: "Gestión de estudiantes, docentes, contratistas y responsables",
     render: renderUsuarios,
+    roles: ["responsable", "coordinacion"],
   },
   departamentos: {
     titulo: "Departamentos",
     subtitulo: "Unidades académicas y administrativas de la institución",
     render: renderDepartamentos,
+    roles: ["responsable", "coordinacion"],
   },
   solicitudes: {
     titulo: "Solicitudes de Préstamo",
@@ -49,8 +56,40 @@ const VISTAS = {
     titulo: "Reportes de Coordinación",
     subtitulo: "Consolidado estadístico, préstamos activos e historial",
     render: renderReportes,
+    roles: ["responsable", "coordinacion"],
   },
 };
+
+function aplicarPermisosMenu() {
+  const rol = store.usuarioActual?.rol || "";
+  document.getElementById("sessionUserName").textContent =
+    store.usuarioActual?.nombre || "Usuario";
+  document.getElementById("sessionUserRole").textContent = rol;
+
+  document.querySelectorAll(".nav-link").forEach((btn) => {
+    const rolesAttr = btn.dataset.roles;
+    if (!rolesAttr) {
+      btn.classList.remove("hidden");
+      return;
+    }
+    const permitidos = rolesAttr.split(",");
+    btn.classList.toggle("hidden", !permitidos.includes(rol));
+  });
+}
+
+function mostrarPantallaLogin() {
+  document.getElementById("appShell").classList.add("hidden");
+  document.getElementById("authScreen").classList.remove("hidden");
+}
+
+async function mostrarAplicacion(usuario) {
+  store.usuarioActual = usuario;
+  document.getElementById("authScreen").classList.add("hidden");
+  document.getElementById("appShell").classList.remove("hidden");
+  aplicarPermisosMenu();
+  await verificarConexionBackend();
+  await navigateTo("dashboard");
+}
 
 async function verificarConexionBackend() {
   const indicator = document.getElementById("apiStatusIndicator");
@@ -69,6 +108,13 @@ async function verificarConexionBackend() {
 
 async function navigateTo(vistaKey) {
   const vista = VISTAS[vistaKey] || VISTAS.dashboard;
+  const rol = store.usuarioActual?.rol;
+
+  if (vista.roles && !vista.roles.includes(rol)) {
+    showToast("No tienes permisos para acceder a ese módulo.", "error");
+    return navigateTo("dashboard");
+  }
+
   const content = document.getElementById("appContent");
 
   document.querySelectorAll(".nav-link").forEach((btn) => {
@@ -90,6 +136,44 @@ async function navigateTo(vistaKey) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // Autocompletar cuentas demo
+  document.querySelectorAll("[data-demo-email]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.getElementById("loginCorreo").value = btn.dataset.demoEmail;
+      document.getElementById("loginPassword").value = btn.dataset.demoPass;
+    });
+  });
+
+  // Formulario Login
+  document.getElementById("formLogin").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const correo = document.getElementById("loginCorreo").value.trim();
+    const password = document.getElementById("loginPassword").value;
+
+    try {
+      const res = await api.login({ correo, password });
+      setAuthSession(res.access_token, res.usuario);
+      showToast(`Bienvenido/a, ${res.usuario.nombre}`, "success");
+      await mostrarAplicacion(res.usuario);
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
+
+  // Cerrar sesión
+  document.getElementById("btnLogout").addEventListener("click", () => {
+    clearAuthSession();
+    store.usuarioActual = null;
+    mostrarPantallaLogin();
+    showToast("Sesión cerrada correctamente", "info");
+  });
+
+  window.addEventListener("sigep:unauthorized", () => {
+    store.usuarioActual = null;
+    mostrarPantallaLogin();
+    showToast("Tu sesión ha expirado. Inicia sesión nuevamente.", "error");
+  });
+
   document.querySelectorAll(".nav-link").forEach((btn) => {
     btn.addEventListener("click", () => navigateTo(btn.dataset.view));
   });
@@ -103,6 +187,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (e.target.id === "globalModalBackdrop") closeModal();
   });
 
-  await verificarConexionBackend();
-  await navigateTo("dashboard");
+  // Verificar sesión activa al recargar
+  if (getAuthToken()) {
+    try {
+      const perfil = await api.obtenerPerfil();
+      await mostrarAplicacion(perfil);
+      return;
+    } catch {
+      clearAuthSession();
+    }
+  }
+
+  mostrarPantallaLogin();
 });

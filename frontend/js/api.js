@@ -1,8 +1,31 @@
 export const API_BASE_URL = "http://127.0.0.1:8000/api/v1";
 
-/**
- * Extrae un mensaje legible desde respuestas de error de FastAPI (400, 404, 409, 422).
- */
+const TOKEN_KEY = "sigep_access_token";
+const USER_KEY = "sigep_current_user";
+
+export function getAuthToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setAuthSession(token, usuario) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(usuario));
+}
+
+export function clearAuthSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+export function getStoredUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseApiError(data, status) {
   if (!data) {
     return `Error HTTP ${status}`;
@@ -24,17 +47,23 @@ function parseApiError(data, status) {
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
-  const config = {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
+  const token = getAuthToken();
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
   };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   let response;
   try {
-    response = await fetch(url, config);
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
   } catch {
     throw new Error(
       "No se pudo conectar con el servidor backend (http://127.0.0.1:8000). Verifica que FastAPI esté encendido."
@@ -45,6 +74,10 @@ async function request(endpoint, options = {}) {
   const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
+    if (response.status === 401 && endpoint !== "/auth/login") {
+      clearAuthSession();
+      window.dispatchEvent(new Event("sigep:unauthorized"));
+    }
     throw new Error(parseApiError(data, response.status));
   }
 
@@ -52,8 +85,11 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
-  // Estado
+  // Estado y Autenticación
   verificarEstado: () => request("/estado"),
+  login: (payload) =>
+    request("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
+  obtenerPerfil: () => request("/auth/me"),
 
   // Departamentos
   listarDepartamentos: () => request("/departamentos/"),

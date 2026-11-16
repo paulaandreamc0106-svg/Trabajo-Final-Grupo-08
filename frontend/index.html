@@ -7,7 +7,65 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <div class="app-shell">
+  <!-- Pantalla de Inicio de Sesión -->
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="brand-badge">SP</div>
+        <div>
+          <h1>SIGEP</h1>
+          <p>Sistema Institucional de Gestión de Préstamos</p>
+        </div>
+      </div>
+
+      <form id="formLogin" class="auth-form">
+        <div class="form-group">
+          <label for="loginCorreo">Correo institucional</label>
+          <input
+            type="email"
+            class="input"
+            id="loginCorreo"
+            placeholder="usuario@sigep.edu.co"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Contraseña</label>
+          <input
+            type="password"
+            class="input"
+            id="loginPassword"
+            placeholder="••••••••"
+            required
+          />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="btnLoginSubmit">
+          Iniciar Sesión
+        </button>
+      </form>
+
+      <div class="auth-demo-box">
+        <p class="auth-demo-title">Cuentas de prueba por rol (clic para autocompletar):</p>
+        <div class="demo-accounts">
+          <button type="button" class="demo-btn" data-demo-email="solicitante@sigep.edu.co" data-demo-pass="Sigep2026*">
+            <strong>Solicitante</strong>
+            <span>solicitante@sigep.edu.co</span>
+          </button>
+          <button type="button" class="demo-btn" data-demo-email="responsable@sigep.edu.co" data-demo-pass="Sigep2026*">
+            <strong>Responsable</strong>
+            <span>responsable@sigep.edu.co</span>
+          </button>
+          <button type="button" class="demo-btn" data-demo-email="coordinacion@sigep.edu.co" data-demo-pass="Sigep2026*">
+            <strong>Coordinación</strong>
+            <span>coordinacion@sigep.edu.co</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Aplicación Principal -->
+  <div class="app-shell hidden" id="appShell">
     <!-- Barra Lateral -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
@@ -28,10 +86,10 @@
         <button class="nav-link" data-view="recursos">
           <span class="nav-dot"></span> Catálogo de Recursos
         </button>
-        <button class="nav-link" data-view="usuarios">
+        <button class="nav-link" data-view="usuarios" data-roles="responsable,coordinacion">
           <span class="nav-dot"></span> Usuarios
         </button>
-        <button class="nav-link" data-view="departamentos">
+        <button class="nav-link" data-view="departamentos" data-roles="responsable,coordinacion">
           <span class="nav-dot"></span> Departamentos
         </button>
 
@@ -47,7 +105,7 @@
         </button>
 
         <span class="nav-group-label">Coordinación</span>
-        <button class="nav-link" data-view="reportes">
+        <button class="nav-link" data-view="reportes" data-roles="responsable,coordinacion">
           <span class="nav-dot"></span> Reportes e Historial
         </button>
       </nav>
@@ -68,15 +126,17 @@
           </div>
         </div>
         <div class="topbar-right">
+          <div class="user-session-pill" id="userSessionInfo">
+            <span id="sessionUserName">Usuario</span>
+            <span class="badge badge-activo" id="sessionUserRole">rol</span>
+          </div>
           <div class="api-status" id="apiStatusIndicator" title="Estado de conexión con FastAPI">
             <span class="status-led"></span>
             <span id="apiStatusText">Verificando API...</span>
           </div>
+          <button class="btn btn-secondary btn-sm" id="btnLogout">Cerrar sesión</button>
         </div>
       </header>
-
-      <!-- Zona de Notificaciones -->
-      <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
       <!-- Contenedor Dinámico de Vistas -->
       <main class="content-area" id="appContent">
@@ -87,6 +147,9 @@
       </main>
     </div>
   </div>
+
+  <!-- Zona de Notificaciones -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <!-- Modal Global Reutilizable -->
   <div class="modal-backdrop hidden" id="globalModalBackdrop" role="dialog" aria-modal="true">

@@ -1,15 +1,14 @@
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 
 from backend.app.database import get_db
 from backend.app.models.entidades import Departamento, Usuario
 from backend.app.schemas.departamentos import (
-    DepartamentoCrear,
     DepartamentoActualizar,
-    DepartamentoRespuesta
+    DepartamentoCrear,
+    DepartamentoRespuesta,
 )
+from backend.app.security import get_current_user, require_roles
 
 router = APIRouter(
     prefix="/api/v1/departamentos",
@@ -20,7 +19,8 @@ router = APIRouter(
 @router.post("/", response_model=DepartamentoRespuesta, status_code=201)
 def crear_departamento(
     datos: DepartamentoCrear,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
 ):
     existente = db.query(Departamento).filter(
         Departamento.nombre == datos.nombre
@@ -41,14 +41,18 @@ def crear_departamento(
 
 
 @router.get("/", response_model=list[DepartamentoRespuesta])
-def listar_departamentos(db: Session = Depends(get_db)):
+def listar_departamentos(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+):
     return db.query(Departamento).order_by(Departamento.id).all()
 
 
 @router.get("/{departamento_id}", response_model=DepartamentoRespuesta)
 def obtener_departamento(
     departamento_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
 ):
     departamento = db.query(Departamento).filter(
         Departamento.id == departamento_id
@@ -64,7 +68,8 @@ def obtener_departamento(
 def actualizar_departamento(
     departamento_id: int,
     datos: DepartamentoActualizar,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
 ):
     departamento = db.query(Departamento).filter(
         Departamento.id == departamento_id
@@ -91,7 +96,8 @@ def actualizar_departamento(
 @router.delete("/{departamento_id}")
 def eliminar_departamento(
     departamento_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("responsable")),
 ):
     departamento = db.query(Departamento).filter(
         Departamento.id == departamento_id

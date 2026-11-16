@@ -10,6 +10,7 @@ La matriz de trazabilidad permite identificar qué funcionalidades responden a c
 
 | Requisito | Descripción | Módulo relacionado | Endpoints relacionados |
 |---|---|---|---|
+| **RF-Auth** | **Autenticación y perfil de usuario** | **Autenticación** | **POST /api/v1/auth/login, GET /api/v1/auth/me** |
 | RF-01 | Consulta del catálogo de recursos | Recursos | GET /api/v1/recursos/ |
 | RF-02 | Consulta de disponibilidad | Recursos y préstamos | GET /api/v1/recursos/ |
 | RF-03 | Registro de solicitudes | Solicitudes | POST /api/v1/solicitudes/ |
@@ -42,7 +43,7 @@ La matriz de trazabilidad permite identificar qué funcionalidades responden a c
 | RNF-01 | Persistencia de información | Base de datos SQLite y modelos SQLAlchemy. |
 | RNF-02 | Integración | API REST desarrollada con FastAPI y comunicación mediante solicitudes HTTP. |
 | RNF-03 | Validación de datos | Esquemas de validación mediante Pydantic y reglas en los endpoints. |
-| RNF-04 | Control de acceso | Pendiente de implementar autenticación y autorización real. |
+| RNF-04 | Control de acceso y seguridad | Autenticación mediante tokens Bearer (HMAC-SHA256), hash de claves con PBKDF2-SHA256 y control de acceso basado en roles (`solicitante`, `responsable`, `coordinacion`) en backend e interfaz web. |
 | RNF-05 | Integridad de la información | Relaciones entre entidades, claves foráneas y validaciones de negocio. |
 | RNF-06 | Manejo de errores | Respuestas HTTP para validaciones, registros inexistentes y conflictos. |
 | RNF-07 | Configuración segura | Variables de entorno y exclusión del archivo .env del repositorio. |
@@ -81,8 +82,8 @@ El estado de los componentes se organiza de la siguiente manera:
 | Reportes | Implementado y probado |
 | Configuración CORS | Configurada |
 | Comunicación inicial frontend-backend | Comprobada |
-| Interfaz web completa | Pendiente de integración |
-| Autenticación y autorización real | Pendiente de implementación o definición |
+| Interfaz web completa | Implementado y probado |
+| Autenticación y autorización real | Implementado y probado |
 
 ## 7. Seguimiento de pruebas funcionales
 
