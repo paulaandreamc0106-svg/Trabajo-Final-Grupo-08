@@ -87,47 +87,39 @@ El estado de los componentes se organiza de la siguiente manera:
 
 ## 7. Seguimiento de pruebas funcionales
 
-Las pruebas funcionales deben permitir comprobar el cumplimiento de los requisitos y criterios de aceptación.
+Las pruebas funcionales verifican el cumplimiento de los requisitos del sistema, las reglas de negocio y la integración entre la interfaz web, la API REST y la base de datos. A continuación se documentan los escenarios principales ejecutados y validados:
 
-Se deben documentar como mínimo los siguientes escenarios:
+| ID Prueba | Requisito / CA | Descripción del escenario | Datos utilizados | Resultado esperado | Resultado obtenido | Estado | Evidencia |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **PF-01** | `RF-01`, `CA-01` | Consultar el catálogo de recursos | Consulta general de catálogo | Listado de recursos registrados con su estado actual | Se recuperan los recursos almacenados correctamente | Aprobada | `evidencias/crud_recursos/02_listar_recurso.png` |
+| **PF-02** | `RF-01`, `CA-01` | Consultar un recurso inexistente | ID de recurso no registrado (ej. `999`) | Respuesta HTTP `404 Not Found` controlada | El servidor responde con error controlado sin fallos | Aprobada | `evidencias/crud_recursos/05_err_recurso_no_existe.png` |
+| **PF-03** | `RF-13`, `CA-01` | Registrar un recurso válido y verificar persistencia | Nombre, categoría, serial único y estado disponible | Registro creado (`201 Created`) y visible al consultar | Recurso almacenado y persistido en SQLite | Aprobada | `evidencias/crud_recursos/01_agregar_nuevo_recurso.png` |
+| **PF-04** | `RF-03`, `RF-04`, `CA-02` | Registrar una solicitud válida | Solicitante válido, recurso disponible y fechas coherentes | Solicitud creada (`201 Created`) en estado pendiente | Solicitud registrada y visible para evaluación | Aprobada | `evidencias/crud_solicitudes/01_agregar_nueva_solicitud.png` |
+| **PF-05** | `RF-03`, `CA-02` | Intentar registrar una solicitud con datos inválidos | Fechas invertidas o solicitante/recurso inexistente | Rechazo de la petición (`400`/`422`/`404`) sin persistir | Validación exitosa; no se guardan datos inconsistentes | Aprobada | `evidencias/crud_solicitudes/08_err_fecha_incorrecta.png` |
+| **PF-06** | `RF-05`, `RF-06`, `CA-03` | Aprobar una solicitud pendiente por responsable | ID de solicitud pendiente y decisión de aprobación | Estado actualizado a aprobada | Solicitud aprobada y lista para entrega | Aprobada | `evidencias/crud_solicitudes/04_aprobar_solicitud.png` |
+| **PF-07** | `RF-05`, `RF-06`, `CA-03` | Rechazar una solicitud pendiente | ID de solicitud pendiente y decisión de rechazo | Estado actualizado a rechazada | Solicitud rechazada correctamente | Aprobada | `evidencias/crud_solicitudes/05_rechazar_solicitud.png` |
+| **PF-08** | `RF-08`, `CA-04` | Impedir una asignación incompatible | Intento de entrega de solicitud no aprobada o recurso ocupado | Operación impedida (`400`/`409`) conservando disponibilidad | El sistema bloquea cruces y asignaciones inválidas | Aprobada | `evidencias/crud_prestamos_entregas_devoluciones/08_err_entregar_prestamo_no_aprobado.png` |
+| **PF-09** | `RF-07`, `CA-04` | Registrar la entrega de un préstamo aprobado | Solicitud aprobada asociada al solicitante y recurso | Préstamo activo registrado y recurso marcado como prestado | Entrega registrada con integridad de datos | Aprobada | `evidencias/crud_prestamos_entregas_devoluciones/03_registrar_entrega.png` |
+| **PF-10** | `RF-10`, `RF-11`, `CA-05` | Registrar la devolución y verificar estado del recurso | ID de préstamo activo y reporte de estado físico | Cierre del préstamo y actualización de disponibilidad | Préstamo finalizado e historial actualizado | Aprobada | `evidencias/crud_prestamos_entregas_devoluciones/04_registrar_devolucion.png` |
+| **PF-11** | `RF-09`, `CA-05` | Registrar y evaluar una solicitud de prórroga | Préstamo activo, nueva fecha y decisión del responsable | Prórroga evaluada y fecha de devolución actualizada | Flujo completo de solicitud y aprobación de prórroga | Aprobada | `evidencias/prorrogas/05_aprobar_prorroga.png` |
+| **PF-12** | `RF-12`, `CA-06` | Consultar información consolidada y reportes | Consultas de resumen general e historial de préstamos | Visualización consolidada de recursos, estados y responsables | Reportes generados y exportables desde la interfaz | Aprobada | `evidencias/reportes/01_resumen_general.png` |
+| **PF-13** | `RNF-02`, `CA-01` a `CA-06` | Integración completa frontend–API–base de datos | Flujo completo desde navegador web hasta SQLite | Operación de extremo a extremo sin datos simulados | Flujo completo verificado en interfaz de usuario | Aprobada | `evidencias/integracion/01_prueba_conexion_frontend_backend.png` |
 
-1. Consultar el catálogo de recursos.
-2. Consultar un recurso inexistente.
-3. Registrar un recurso válido y verificar su persistencia.
-4. Intentar registrar un recurso con código o serial duplicado.
-5. Registrar una solicitud válida.
-6. Intentar registrar una solicitud con información inválida.
-7. Aprobar una solicitud pendiente.
-8. Rechazar una solicitud pendiente.
-9. Impedir una asignación incompatible.
-10. Registrar la entrega de un préstamo aprobado.
-11. Registrar la devolución y verificar el estado físico del recurso.
-12. Consultar préstamos activos e historial.
-13. Registrar y evaluar una solicitud de prórroga.
-14. Consultar información consolidada.
-15. Comprobar la comunicación entre frontend, backend y base de datos.
-
-Cada prueba deberá documentar:
-
-- Identificador de la prueba.
-- Requisito o criterio de aceptación relacionado.
-- Descripción del escenario.
-- Datos utilizados.
-- Resultado esperado.
-- Resultado obtenido.
-- Estado de la prueba: aprobada o fallida.
-- Evidencia correspondiente.
+---
 
 ## 8. Control de cambios y versiones
 
-Los cambios realizados durante el desarrollo se gestionarán mediante Git y GitHub.
+La gestión del código fuente, la integración de funcionalidades y la documentación se organizó mediante las siguientes ramas en GitHub, reflejando la evolución real del sistema:
 
-Se utilizarán ramas de trabajo asociadas a los requisitos del proyecto y Pull Requests para revisar e integrar los cambios en la rama principal.
+| Rama en GitHub | Alcance / Módulos Asociados | Requisitos Relacionados | Propósito en el Desarrollo |
+| :--- | :--- | :--- | :--- |
+| `main` | Backend (API REST), Base de Datos, Modelos, Seguridad e Integración General | `RF-Auth`, `RF-01` a `RF-13`, `RNF-01` a `RNF-09` | Consolidación de la arquitectura cliente-servidor, lógica de negocio, endpoints y versión estable final. |
+| `feature/frontend-y-evidencias` | Interfaz Web (HTML/CSS/JS) y Pruebas de Integración | `CA-01` a `CA-06`, `RNF-02`, `RNF-04` | Desarrollo de las vistas de usuario por roles, consumo de la API y captura de evidencias de operación. |
+| `feature/evidencias-y-docs-finales` | Documentación Técnica y Evidencias Funcionales | `RNF-08` (Documentación) | Consolidación de los informes de pruebas, actualización de requisitos, diseño y matriz de trazabilidad. |
 
-La relación de cada requisito con su rama, commit y Pull Request se actualizará a medida que se realice la integración del trabajo.
+---
 
 ## 9. Conclusión
 
-La matriz de trazabilidad permite relacionar los requisitos del sistema con los módulos implementados, los endpoints de la API y las pruebas funcionales.
+La matriz de trazabilidad establece la correspondencia completa entre las condiciones de aceptación obligatorias (`CA-01` a `CA-06`), los requisitos funcionales y no funcionales aprobados, los módulos implementados en el repositorio, el control de versiones en GitHub y las pruebas funcionales documentadas en la carpeta `evidencias/`. Con esto se verifica el cumplimiento integral del ciclo de préstamo de equipos y recursos institucionales.
 
-Este documento facilita la verificación del cumplimiento de los criterios de aceptación y permite identificar las funcionalidades implementadas y aquellas que todavía requieren desarrollo o integración.
